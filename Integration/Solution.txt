@@ -1,0 +1,38 @@
+There are many options for solving this problem. 
+Here I show three solutions:
+- The first one is a good solution but needs an external element/extra configuring. 
+- The second option is a fast/workaround solution while working for a better option.
+- The third option is a solution using only C# code, but modifing the Backend code and adding the possibility 
+    of creating a bottleneck. 
+
+1. Creating a database for hashes of the objects that are being stored in the database and checking if 
+an object with the same hash is already in the queue for being saved to the database. 
+A good option for this type of operation would be using Redis, getting a very good performance for this 
+use case because of the fast read/write speeds of this on-memory database.
+    * This option has the downside of having to create a new database management system, creating the accesses
+        and synchronizing the operations. 
+
+2. If creating a database is not an option, a fast workaround could be using a shared filesystem between all the 
+servers and creating files with the hashes of the files that are in queue for being saved as the file names. 
+If the servers are already sharing some common network storage as SMB, creating, checking and deleting those files 
+can be easier and faster to develop that configuring a database management system.
+    * This option has several big downsides, it is a "fast and ugly" solution. 
+    * If there is no common network storage, configuring the different servers with the correct access and security 
+        parameters for the first time can be time consuming. 
+    * File system operations are slower and create more overhead than other solutions, like writing data in a memory 
+        storage, and connecting to a shared file system also creates overhead. 
+        For these reasons (and more), this is not a scalable solution.
+
+3. As there are no file or folder modification constraints for this case, and with the requeriment of modifing the c# code
+to create a solution, there is the option to modify the Backend code to transform the ConcurrentBag to a ConcurrentDictionary 
+that acts like a Set of elements, so this object is the one that automatically rejects the addition of other items of the same content. 
+In this case, the key of the dictionary is the content, and the value is the item object, so no more than one object with the same
+content will be added because the key acts as a constraint.
+This object can be encapsulated into a new object to have only one parameter and work as a Set (i.e. ConcorrentItemSet), 
+making it more clean and maintainable.
+    * The main downside of this option is that the ItemOperationBackend receives all the calls of the ItemIntegrationService 
+        from all servers, making the backend to process all the calls which could create a bottleneck of multiple items with 
+        the same content trying to be saved, only to be discarded at the end because other item was saved before. 
+    * More storage will be needed to save each element. Ideally a hash of the content of the element should be added as the key
+        to use as little space as possible.
+        
